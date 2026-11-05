@@ -44,15 +44,33 @@ jobs:
         run: |
           set -euo pipefail
           git clone --depth 1 --branch v6.0.4-lts-android https://github.com/ffmpegkit-maintained/ffmpeg.git "$RUNNER_TEMP/ffmpegkit"
-          cd "$RUNNER_TEMP/ffmpegkit"
+
+          # In this tag, android.sh lives inside android-6.0-lts/, not the
+          # repository root. Run it from that directory because its scripts
+          # and prebuilt output paths are relative to its own directory.
+          FFMPEG_BUILD_DIR="$RUNNER_TEMP/ffmpegkit/android-6.0-lts"
+          if [ ! -f "$FFMPEG_BUILD_DIR/android.sh" ]; then
+            echo "FFmpegKit android.sh not found at expected tag path: $FFMPEG_BUILD_DIR" >&2
+            echo "Available build scripts:" >&2
+            find "$RUNNER_TEMP/ffmpegkit" -maxdepth 4 -type f -name 'android.sh' -print >&2 || true
+            exit 1
+          fi
+          cd "$FFMPEG_BUILD_DIR"
+
           export ANDROID_SDK_ROOT="$ANDROID_HOME"
           export ANDROID_NDK_ROOT="$ANDROID_HOME/ndk/27.2.12479018"
-          test -x ./android.sh
-          test -s "$ANDROID_NDK_ROOT/source.properties"
-          grep -q 'Pkg.Revision = 27.2.12479018' "$ANDROID_NDK_ROOT/source.properties"
+          if [ ! -s "$ANDROID_NDK_ROOT/source.properties" ]; then
+            echo "Android NDK source.properties not found: $ANDROID_NDK_ROOT" >&2
+            find "$ANDROID_HOME/ndk" -maxdepth 2 -name source.properties -print >&2 || true
+            exit 1
+          fi
+          grep -q 'Pkg.Revision = 27.2.12479018' "$ANDROID_NDK_ROOT/source.properties" || {
+            cat "$ANDROID_NDK_ROOT/source.properties" >&2
+            echo "Unexpected NDK revision" >&2
+            exit 1
+          }
           echo "Using NDK: $(grep 'Pkg.Revision' "$ANDROID_NDK_ROOT/source.properties")"
 
-          # Use an argument array so YAML/shell escaping cannot split the command.
           ffmpeg_args=(
             --lts
             --full
@@ -61,19 +79,22 @@ jobs:
             --disable-x86
             --disable-x86-64
           )
-          if ! ./android.sh "${ffmpeg_args[@]}"; then
-            echo "FFmpegKit android.sh failed. Searching for build logs..." >&2
-            while IFS= read -r log_file; do
-              echo "===== $log_file (last 300 lines) =====" >&2
-              tail -n 300 "$log_file" >&2 || true
-            done < <(find . -type f \( -name 'build.log' -o -name '*.log' \) -print | sort | head -20)
+          if ! bash ./android.sh "${ffmpeg_args[@]}"; then
+            echo "FFmpegKit android.sh failed. Build log follows:" >&2
+            if [ -f build.log ]; then
+              tail -n 500 build.log >&2 || true
+            else
+              find . -type f \( -name '*.log' -o -name 'config.log' \) -print
+            fi
             exit 1
           fi
 
-          mapfile -t aar_files < <(find prebuilt -type f -name 'ffmpeg-kit-full.aar' | sort)
-          if [ "${#aar_files[@]}" -eq 0 ]; then
-            echo "Could not locate the FFmpegKit full AAR in prebuilt/" >&2
-            find prebuilt -maxdepth 6 -type f | head -200
+          # This source tag names the produced archive ffmpeg-kit.aar
+          # (not ffmpeg-kit-full.aar); locate the actual archive robustly.
+          mapfile -t aar_files < <(find "$FFMPEG_BUILD_DIR/prebuilt" -type f -name '*.aar' -print | sort)
+          if [ "${#aar_files[@]}" -ne 1 ]; then
+            echo "Expected exactly one ARMv7 AAR, found ${#aar_files[@]}" >&2
+            printf '%s\\n' "${aar_files[@]}" >&2
             exit 1
           fi
           selected="${aar_files[0]}"
@@ -82,7 +103,7 @@ jobs:
           unzip -l "$GITHUB_WORKSPACE/app/libs/ffmpeg-kit-full.aar" > "$RUNNER_TEMP/aar-files.txt"
           if ! grep -q 'jni/armeabi-v7a/' "$RUNNER_TEMP/aar-files.txt"; then
             echo "The generated AAR does not contain armeabi-v7a native libraries" >&2
-            cat "$RUNNER_TEMP/aar-files.txt"
+            cat "$RUNNER_TEMP/aar-files.txt" >&2
             exit 1
           fi
           if grep -Eq 'jni/(arm64-v8a|x86|x86_64)/' "$RUNNER_TEMP/aar-files.txt"; then
@@ -117,6 +138,6 @@ jobs:
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: EVCsix-0.2.194-ARMv7-debug-apk
+          name: EVCsix-0.2.195-ARMv7-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error

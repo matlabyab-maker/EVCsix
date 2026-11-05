@@ -33,9 +33,9 @@ If MGit does not show the workflow after the push, first check GitHub's **Code**
 
 ## ARMv7 FFmpeg build
 
-The maintained Maven FFmpegKit artifacts used previously do not provide the required 32-bit ARM native library. The workflow therefore builds FFmpegKit from the maintained source tag `v6.0.4-lts-android` on GitHub Actions, using Android NDK `27.2.12479018`, and then checks that the generated AAR contains `jni/armeabi-v7a/` without 64-bit or x86 ABIs.
+The maintained Maven FFmpegKit artifacts used previously do not provide the required 32-bit ARM native library. The workflow therefore builds FFmpegKit from the maintained source tag `v6.0.4-lts-android` on GitHub Actions, using Android NDK `27.2.12479018`. In this tag, the Android build script is located at `android-6.0-lts/android.sh` and emits an archive named `ffmpeg-kit.aar`; the workflow now uses those exact paths, copies the generated archive to the app's local dependency name, and verifies that it contains `jni/armeabi-v7a/` without 64-bit or x86 ABIs.
 
-The FFmpeg command is passed as a Bash argument array rather than using multi-line backslash continuations. This avoids the escaping defect in the previous workflow file. If the native build fails, the workflow searches for log files and prints diagnostic tails to the Actions log.
+The FFmpeg command is passed as a Bash argument array. If the native build fails, the workflow prints the native build log to the Actions log. The workflow also checks that the nested build script and expected NDK are present before starting.
 
 ## Split behavior retained
 
