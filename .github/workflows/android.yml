@@ -59,6 +59,10 @@ jobs:
 
           export ANDROID_SDK_ROOT="$ANDROID_HOME"
           export ANDROID_NDK_ROOT="$ANDROID_HOME/ndk/27.2.12479018"
+          # Hosted runners may predefine ANDROID_NDK_HOME to a different
+          # side-by-side NDK. Force every NDK variable to one installation.
+          export ANDROID_NDK_HOME="$ANDROID_NDK_ROOT"
+          export NDK_HOME="$ANDROID_NDK_ROOT"
           if [ ! -s "$ANDROID_NDK_ROOT/source.properties" ]; then
             echo "Android NDK source.properties not found: $ANDROID_NDK_ROOT" >&2
             find "$ANDROID_HOME/ndk" -maxdepth 2 -name source.properties -print >&2 || true
@@ -69,11 +73,33 @@ jobs:
             echo "Unexpected NDK revision" >&2
             exit 1
           }
+
+          TOOLCHAIN_BIN="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          if [ ! -x "$TOOLCHAIN_BIN/clang" ]; then
+            echo "NDK clang compiler missing: $TOOLCHAIN_BIN/clang" >&2
+            exit 1
+          fi
+          export PATH="$TOOLCHAIN_BIN:$PATH"
           echo "Using NDK: $(grep 'Pkg.Revision' "$ANDROID_NDK_ROOT/source.properties")"
+          echo "ANDROID_NDK_HOME=$ANDROID_NDK_HOME"
+          echo "ANDROID_NDK_ROOT=$ANDROID_NDK_ROOT"
+
+          # NDK r24+ removed the API-16 ARMv7 compiler wrapper. This app has
+          # minSdk 24, so build at API 24 and verify the compiler first.
+          ARMV7_CC="$TOOLCHAIN_BIN/armv7a-linux-androideabi24-clang"
+          if [ ! -x "$ARMV7_CC" ]; then
+            echo "Required API-24 ARMv7 compiler wrapper is missing: $ARMV7_CC" >&2
+            ls -la "$TOOLCHAIN_BIN" | grep -E 'armv7a-linux-androideabi.*-clang' >&2 || true
+            exit 1
+          fi
+          printf 'int main(void) { return 0; }\\n' > "$RUNNER_TEMP/ndk-smoke.c"
+          "$ARMV7_CC" "$RUNNER_TEMP/ndk-smoke.c" -o "$RUNNER_TEMP/ndk-smoke"
+          file "$RUNNER_TEMP/ndk-smoke"
 
           ffmpeg_args=(
             --lts
             --full
+            --api-level=24
             --disable-arm-v7a-neon
             --disable-arm64-v8a
             --disable-x86
@@ -138,6 +164,6 @@ jobs:
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: EVCsix-0.2.195-ARMv7-debug-apk
+          name: EVCsix-0.2.196-ARMv7-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error

@@ -2,7 +2,7 @@
 
 - **GitHub repository:** `EVCsix`
 - **Application label:** `EVCsix`
-- **Project version:** `0.2.194` (`versionCode 394`)
+- **Project version:** `0.2.196` (`versionCode 396`)
 - **Application ID / Kotlin package:** `com.evc.app` (kept unchanged to preserve app identity)
 - **Native ABI:** `armeabi-v7a` only (32-bit ARM / ARMv7)
 
@@ -48,3 +48,10 @@ The FFmpeg command is passed as a Bash argument array. If the native build fails
 ## Scope and verification
 
 This cleanup renames the project/repository-facing metadata, removes the old Git history and remote configuration, increments the project version, and corrects the FFmpeg workflow command construction. The application ID and existing app source/features are preserved. A successful GitHub Actions build and on-device Split test have **not** yet been confirmed; use the Actions result to verify the native build and APK before installing it.
+
+
+## FFmpegKit ARMv7 toolchain note
+The FFmpegKit LTS script defaults to Android API 16, but modern Android NDK releases no longer provide
+the `armv7a-linux-androideabi16-clang` wrapper. This project has `minSdk 24`, so CI explicitly uses
+`--api-level=24`, aligns `ANDROID_NDK_HOME`, `ANDROID_NDK_ROOT`, and `NDK_HOME` to NDK 27.2.12479018,
+and runs an ARMv7 compiler smoke test before starting the full FFmpegKit build.
