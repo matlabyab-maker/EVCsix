@@ -92,7 +92,7 @@ jobs:
             ls -la "$TOOLCHAIN_BIN" | grep -E 'armv7a-linux-androideabi.*-clang' >&2 || true
             exit 1
           fi
-          printf 'int main(void) { return 0; }\\n' > "$RUNNER_TEMP/ndk-smoke.c"
+          printf 'int main(void) { return 0; }\n' > "$RUNNER_TEMP/ndk-smoke.c"
           "$ARMV7_CC" "$RUNNER_TEMP/ndk-smoke.c" -o "$RUNNER_TEMP/ndk-smoke"
           file "$RUNNER_TEMP/ndk-smoke"
 
@@ -120,7 +120,7 @@ jobs:
           mapfile -t aar_files < <(find "$FFMPEG_BUILD_DIR/prebuilt" -type f -name '*.aar' -print | sort)
           if [ "${#aar_files[@]}" -ne 1 ]; then
             echo "Expected exactly one ARMv7 AAR, found ${#aar_files[@]}" >&2
-            printf '%s\\n' "${aar_files[@]}" >&2
+            printf '%s\n' "${aar_files[@]}" >&2
             exit 1
           fi
           selected="${aar_files[0]}"

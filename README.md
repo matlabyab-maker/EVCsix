@@ -55,3 +55,8 @@ The FFmpegKit LTS script defaults to Android API 16, but modern Android NDK rele
 the `armv7a-linux-androideabi16-clang` wrapper. This project has `minSdk 24`, so CI explicitly uses
 `--api-level=24`, aligns `ANDROID_NDK_HOME`, `ANDROID_NDK_ROOT`, and `NDK_HOME` to NDK 27.2.12479018,
 and runs an ARMv7 compiler smoke test before starting the full FFmpegKit build.
+
+
+## CI smoke-test correction
+
+The ARMv7 compiler smoke-test source is written with a real newline (`\\n` in the YAML block's shell command), not a literal backslash followed by `n`. This prevents Clang from interpreting `\\n` as stray C source text before the FFmpegKit build starts. The app version and application code are unchanged in this workflow-only hotfix.
