@@ -37,7 +37,12 @@ jobs:
       - name: Install FFmpegKit build prerequisites
         run: |
           sudo apt-get update
-          sudo apt-get install -y autoconf automake libtool pkg-config curl git doxygen nasm cmake gcc gperf texinfo yasm bison autogen wget autopoint meson ninja-build ragel groff gtk-doc-tools libtasn1-6-dev
+          sudo apt-get install -y autoconf automake libtool pkg-config curl git doxygen nasm cmake gcc gperf texinfo yasm bison autogen wget autopoint meson ninja-build ragel groff gtk-doc-tools libtasn1-6-dev libtasn1-bin
+
+      - name: Verify ASN.1 parser prerequisite
+        run: |
+          command -v asn1Parser
+          asn1Parser --help >/dev/null 2>&1 || true
 
       - name: Build FFmpegKit for 32-bit ARM only
         shell: bash
